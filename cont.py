@@ -5,7 +5,7 @@ import streamlit as st
 
 st.header("応答波形確認", divider='red')
 
-footer_text = "Ver.0.01"
+footer_text = "Ver.0.03"
 
 st.markdown(
     f"""
@@ -40,12 +40,13 @@ option_k = ['P制御','PD制御','PID制御']
 ulist = ['ステップ','正弦波']
 
 # サイドバーの設定
-ut = st.sidebar.selectbox('入力設定', ulist)
-st.sidebar.divider()
-fz = st.sidebar.slider('正弦波入力の周波数', 0, 100, 1)
-st.sidebar.divider()
-time = st.sidebar.slider('解析時間[s]',0, 50, (0, 5))
-b = st.sidebar.slider('解析分解能[ms]',0, 100, 10)
+with st.sidebar:
+    ut = st.selectbox('入力設定', ulist)
+    st.divider()
+    fz = st.slider('正弦波入力の周波数', 0, 100, 1)
+    st.divider()
+    time = st.slider('解析時間[s]',0, 50, (0, 5))
+    b = st.slider('解析分解能[ms]',0, 100, 10)
 
 # 時間と正弦波入力を生成
 Td = np.arange(time[0],time[1],b/1000)
@@ -57,23 +58,23 @@ def Transfunc(optionp):
         # 1次遅れ系
         P = tf([0, K], [T, 1])
         st.latex(r'''
-                \frac{K}{Ts+1}
+                P(s)=\frac{K}{Ts+1}
                 ''')
     elif optionp == '2次遅れ系':
         # 2次遅れ系
         P = tf([0, K*W**2], [1, 2*Z*W, W**2])
         st.latex(r'''
-                \frac{Kω_{n}^2}{s^2+2ζω_{n}s+ω_{n}^2}
+                P(s)=\frac{Kω_{n}^2}{s^2+2ζω_{n}s+ω_{n}^2}
                 ''')
     elif optionp == '1次遅れ+積分要素':
         # 1次遅れ+積分要素
         P = tf([0, K], [T, 1, 0])
         st.latex(r'''
-                \frac{K}{s(Ts+1)}
+                P(s)=\frac{K}{s(Ts+1)}
                 ''')
     else:
         st.latex(r'''
-                \frac{As+B}{Cs^2+Ds+E}
+                P(s)=\frac{As+B}{Cs^2+Ds+E}
                 ''')
         c1,c2,c3,c4,c5 = st.columns(5)
         with c1:
@@ -96,7 +97,7 @@ def PIDcont(optionk, kp, kd, ki):
     elif optionk == "PD制御":
         K = tf([kd, kp],[0,1])
     else:
-        K = tf([kd, kp, ki],[0,1])
+        K = tf([kd, kp, ki],[1,0])
     return K
 
 # メインプログラム
@@ -112,6 +113,9 @@ if __name__ == "__main__":
                 Z = st.slider('ζ:減衰係数', -1.00, 2.00, 1.00)
                 W = st.slider('Wn:固有角周波数', -10.00, 10.00, 1.00)
 
+        with st.expander("### ブロック図", expanded=False):
+            st.image('pstep.png', use_column_width=True)
+        
         P = Transfunc(optionp)
 
         if ut == 'ステップ':
