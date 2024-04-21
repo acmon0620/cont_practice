@@ -5,7 +5,7 @@ import streamlit as st
 
 st.header("応答波形確認", divider='red')
 
-footer_text = "Ver.0.03"
+footer_text = "Ver.0.04"
 
 st.markdown(
     f"""
@@ -42,6 +42,8 @@ ulist = ['ステップ','正弦波']
 # サイドバーの設定
 with st.sidebar:
     ut = st.selectbox('入力設定', ulist)
+    st.divider()
+    rt = st.slider('目標値r', 0, 100, 1)
     st.divider()
     fz = st.slider('正弦波入力の周波数', 0, 100, 1)
     st.divider()
@@ -100,6 +102,14 @@ def PIDcont(optionk, kp, kd, ki):
         K = tf([kd, kp, ki],[1,0])
     return K
 
+def Choiceimg(optionk):
+    if optionk == 'P制御':
+        return 'P.png'
+    elif optionk == 'PD制御':
+        return 'PD.png'
+    else:
+        return 'PID.png'
+
 # メインプログラム
 if __name__ == "__main__":
     with tab1:
@@ -130,9 +140,9 @@ if __name__ == "__main__":
             height = 500,
             title = dict(text=f"{optionp}の{ut}入力に対する応答"),
             xaxis = dict(title='時間'),
-            yaxis = dict(title='ゲイン')
+            yaxis = dict(title='y(t)')
         )
-        # フィギュアの作成
+        # フィギュアの作成  
         fig1 = go.Figure(data=data1, layout=layout)
         # フィギュアの表示
         st.plotly_chart(fig1, use_container_width=True)
@@ -184,12 +194,16 @@ if __name__ == "__main__":
             optionk = st.selectbox('制御器の種類', option_k)
             c1,c2,c3 = st.columns(3)
             with c1:
-                Kp = st.slider('比例ゲイン', -1.00, 5.00, 1.00)
+                Kp = st.slider('比例ゲイン', -1.00, 10.00, 1.00)
             with c2:
-                Kd = st.slider('微分ゲイン', -1.00, 1.00, 1.00)
+                Kd = st.slider('微分ゲイン', -1.00, 10.00, 1.00)
             with c3:
-                Ki = st.slider('積分ゲイン', -1, 30, 1)
+                Ki = st.slider('積分ゲイン', -1.00, 50.00, 1.00)
 
+        with st.expander("### ブロック図", expanded=False):
+            img = Choiceimg(optionk)
+            st.image(f'{img}', use_column_width=True)
+        
         K = PIDcont(optionk, Kp, Kd, Ki)
         G = feedback(P*K, 1)    # 閉ループ
 
@@ -199,13 +213,13 @@ if __name__ == "__main__":
             y, t, _ = lsim(G, u, Td, 0)
 
         # データ作成
-        datak1 = go.Scatter(x=t, y=y)
+        datak1 = go.Scatter(x=t, y=y*rt)
         layout = go.Layout(
             width = 700,
             height = 500,
             title = dict(text=f"{optionk}の{ut}入力に対する応答"),
             xaxis = dict(title='時間'),
-            yaxis = dict(title='ゲイン')
+            yaxis = dict(title='y(t)')
         )
         # フィギュアの作成
         fig1 = go.Figure(data=datak1, layout=layout)
@@ -221,6 +235,31 @@ if __name__ == "__main__":
             with col2:
                 st.write('零点', G.zeros())
 
+        with st.expander("### e(t) u(t)の応答", expanded=False):
+            datake = go.Scatter(x=t, y=1-y)
+            ue, t, _ = lsim(K, 1-y, Td, 0)
+            dataku = go.Scatter(x=t, y=ue*rt)
+            layoute = go.Layout(
+                width = 700,
+                height = 350,
+                title = dict(text="偏差の応答"),
+                xaxis = dict(title='時間'),
+                yaxis = dict(title='e(t)')
+            )
+            layoutu = go.Layout(
+                width = 700,
+                height = 350,
+                title = dict(text="入力の応答"),
+                xaxis = dict(title='時間'),
+                yaxis = dict(title='u(t)')
+            )
+            # フィギュアの作成
+            fige = go.Figure(data=datake, layout=layoute)
+            figu = go.Figure(data=dataku, layout=layoutu)
+            # フィギュアの表示
+            st.plotly_chart(fige, use_container_width=True)
+            st.plotly_chart(figu, use_container_width=True)
+
         mag, phase, w = bode(G, logspace(-2,2), plot=True)
 
         datak2 = go.Scatter(x=w, y=mag)
@@ -229,7 +268,7 @@ if __name__ == "__main__":
         layout2 = go.Layout(
             width = 700,
             height = 350,
-            title = dict(text=f"{optionp}のボード線図"),
+            title = dict(text=f"{optionk}のボード線図"),
             xaxis = dict(title='周波数[rad/s]', type='log'),
             yaxis = dict(title='ゲイン[dB]')
         )
